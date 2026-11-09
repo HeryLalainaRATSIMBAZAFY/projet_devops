@@ -20,7 +20,7 @@ pipeline {
         REGISTRY     = 'localhost:8082'
         IMAGE_NAME   = 'projet_devops'
         IMAGE_TAG    = "${env.BUILD_NUMBER}"
-        NOTIFY_EMAIL = 'heritianajulien12@gmail.com'   // destinataire de la notification
+        NOTIFY_EMAIL = 'lalainatag@gmail.com'   // destinataire de la notification
     }
 
     stages {
