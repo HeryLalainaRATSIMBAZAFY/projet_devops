@@ -18,12 +18,13 @@ services:
       retries: 5
 
   web:
+    build: .
     image: hertin12/projet_devops:latest
     container_name: devops_project
     ports:
       - "5000:5000"
     environment:
-      DOCKER_ENV: true
+      DOCKER_ENV: "true"
       DB_USER: postgres
       DB_PASSWORD: admin
       DB_HOST: db              # ← Nom du service dans docker-compose

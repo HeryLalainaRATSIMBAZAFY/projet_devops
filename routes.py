@@ -45,9 +45,15 @@ def edit(id):
     user = User.query.get_or_404(id)
 
     if request.method == 'POST':
+        email = request.form['email']
+        existing = User.query.filter_by(email=email).first()
+        if existing and existing.id != user.id:
+            flash('Cet email existe déjà !', 'error')
+            return redirect(url_for('main.edit', id=user.id))
+
         user.nom = request.form['nom']
         user.prenom = request.form['prenom']
-        user.email = request.form['email']
+        user.email = email
         user.telephone = request.form.get('telephone', '')
 
         db.session.commit()
