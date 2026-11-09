@@ -9,11 +9,11 @@ git push ──► GitHub ──webhook──► Jenkins ──► docker build 
 | Étape | Outil | Où c'est défini |
 |---|---|---|
 | 1. Push du code | GitHub `HeryLalainaRATSIMBAZAFY/projet_devops` | `git push` |
-| 2. Déclenchement par webhook | GitHub Webhook → ngrok → Jenkins | `triggers { githubPush() }` du `Jenkinsfile` |
+| 2. Déclenchement par webhook | GitHub Webhook → tunnel Cloudflare → Jenkins | `triggers { githubPush() }` du `Jenkinsfile` |
 | 3. Build de l'image | Docker | stage `Build Docker Image` |
 | 4. Push vers le registry privé | Nexus, dépôt `docker-hosted` (`localhost:8082`) | stage `Push to Nexus` |
 | 5. Déploiement | Docker Compose (`docker-compose.yml`) | stages `Deploy with Docker Compose` + `Smoke test` |
-| 6. Notification | Email Extension | bloc `post { success / failure }` |
+| 6. Notification | Email Extension → boîte mail locale Mailpit | bloc `post { success / failure }` |
 
 ## Services
 
@@ -23,6 +23,7 @@ git push ──► GitHub ──webhook──► Jenkins ──► docker build 
 | Jenkins | http://localhost:8090 | compte créé à l'étape A |
 | Nexus | http://localhost:8081 | `admin` / mot de passe dans `ci/.env.ci` (non versionné) |
 | Registry Docker | `localhost:8082` | mêmes identifiants que Nexus |
+| Mailpit (emails) | http://localhost:8025 | — |
 
 ## 0. Démarrer l'infrastructure (déjà fait une fois)
 
@@ -51,13 +52,17 @@ bash ci/nexus-setup.sh <mot_de_passe_admin_nexus>
 - **Username with password** — ID `nexus-credentials`, utilisateur `admin`, mot de passe = `NEXUS_PASSWORD` de `ci/.env.ci`.
 - (Uniquement si le dépôt GitHub est privé) **Username with password** — ID `github-credentials`, votre login GitHub + un *Personal Access Token*.
 
-## C. Notification email
+## C. Notification email (Mailpit)
 
-*Manage Jenkins → System*
+Les notifications partent vers **Mailpit**, une boîte mail locale lancée par `ci/docker-compose.ci.yml` : aucun compte ni mot de passe.
 
-- **Jenkins Location** → URL : `http://localhost:8090/`, email admin : votre adresse.
-- **Extended E-mail Notification** → SMTP `smtp.gmail.com`, port `465`, *Use SSL*, credentials = votre adresse Gmail + un **mot de passe d'application** Google (Compte Google → Sécurité → Mots de passe des applications).
+*Manage Jenkins → System → Extended E-mail Notification*
+
+- SMTP server : `mailpit`, port `1025`, sans SSL ni identifiants.
+- Les emails s'affichent sur http://localhost:8025.
 - Le destinataire se règle dans `NOTIFY_EMAIL` du `Jenkinsfile`.
+
+Variante Gmail (vrais emails) : SMTP `smtp.gmail.com`, port `465`, *Use SSL*, credentials = adresse Gmail + **mot de passe d'application** Google (validation en deux étapes obligatoire).
 
 ## D. Créer le job
 
@@ -72,23 +77,29 @@ bash ci/nexus-setup.sh <mot_de_passe_admin_nexus>
 
 ## E. Webhook GitHub → Jenkins
 
-GitHub ne peut pas joindre `localhost` : on expose Jenkins avec **ngrok**.
+GitHub ne peut pas joindre `localhost` : on expose Jenkins avec un **tunnel Cloudflare** (conteneur Docker, sans compte). Il ne démarre que sur demande :
 
 ```bash
-winget install ngrok.ngrok
-```
-```bash
-ngrok config add-authtoken <token depuis dashboard.ngrok.com>
-```
-```bash
-ngrok http 8090
+docker compose -f ci/docker-compose.ci.yml --profile tunnel up -d tunnel
 ```
 
-Sur GitHub : *Settings → Webhooks → Add webhook*
+Récupérer l'URL publique (PowerShell) :
 
-- Payload URL : `https://<sous-domaine>.ngrok-free.app/github-webhook/` (avec le `/` final)
+```bash
+docker logs tunnel 2>&1 | Select-String trycloudflare
+```
+
+Sur GitHub : *Settings → Webhooks → Add webhook* (ou *Edit* si l'URL a changé)
+
+- Payload URL : `https://<sous-domaine>.trycloudflare.com/github-webhook/` (avec le `/` final)
 - Content type : `application/json`
 - Événement : *Just the push event*
+
+L'URL change à chaque redémarrage du tunnel : mettre à jour le webhook. Après la démo, couper l'exposition publique :
+
+```bash
+docker stop tunnel
+```
 
 L'onglet *Recent Deliveries* doit afficher une réponse `200`.
 
@@ -104,5 +115,5 @@ L'onglet *Recent Deliveries* doit afficher une réponse `200`.
    - Jenkins : le build démarre seul (*Started by GitHub push*) et enchaîne les stages ;
    - Nexus → *Browse → docker-hosted* : la nouvelle image `projet_devops:<numéro de build>` ;
    - http://localhost:5000 : le changement est en ligne ;
-   - la boîte mail : le message `SUCCESS - projet_devops #N`.
+   - Mailpit (http://localhost:8025) : le message `SUCCESS - projet_devops #N`.
 4. Optionnel : casser volontairement le build (erreur de syntaxe dans `Dockerfile`) pour montrer la notification `FAILED`.

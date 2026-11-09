@@ -31,6 +31,15 @@ services:
       - nexus_data:/nexus-data
     restart: unless-stopped
 
+  # Boîte mail locale : reçoit les notifications de Jenkins (SMTP mailpit:1025)
+  # Interface web : http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.21.8
+    container_name: mailpit
+    ports:
+      - "8025:8025"
+    restart: unless-stopped
+
   # Tunnel public gratuit (sans compte) pour que le webhook GitHub atteigne Jenkins.
   # L'URL https://xxxx.trycloudflare.com change à chaque redémarrage :
   #   docker logs tunnel 2>&1 | grep trycloudflare
