@@ -10,3 +10,5 @@ env/
 *.sqlite3
 .DS_Store
 Thumbs.db
+# Secrets CI locaux
+ci/.env.ci

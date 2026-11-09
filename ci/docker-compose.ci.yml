@@ -1,0 +1,36 @@
+# Infrastructure CI/CD de démonstration : Jenkins + Nexus (registry Docker privé)
+# Lancement :  docker compose -f ci/docker-compose.ci.yml up -d --build
+name: projet_devops_ci
+
+services:
+
+  jenkins:
+    build: ./jenkins
+    container_name: jenkins
+    # root : accès au socket Docker de Docker Desktop (acceptable pour une démo locale)
+    user: root
+    ports:
+      - "8090:8080"     # UI Jenkins (8080 est déjà pris sur cette machine)
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  nexus:
+    image: sonatype/nexus3:3.75.1
+    container_name: nexus
+    ports:
+      - "8081:8081"     # UI Nexus
+      - "8082:8082"     # Registry Docker (dépôt "docker-hosted")
+    environment:
+      INSTALL4J_ADD_VM_PARAMS: "-Xms512m -Xmx1g -XX:MaxDirectMemorySize=1g"
+    volumes:
+      - nexus_data:/nexus-data
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:
+  nexus_data:

@@ -1,3 +1,6 @@
+# Nom de projet fixe : le même stack est mis à jour en local et depuis Jenkins
+name: projet_devops
+
 services:
 
   db:
@@ -19,7 +22,8 @@ services:
 
   web:
     build: .
-    image: hertin12/projet_devops:latest
+    # Image publiée par Jenkins dans le registry privé Nexus
+    image: ${REGISTRY:-localhost:8082}/projet_devops:${IMAGE_TAG:-latest}
     container_name: devops_project
     ports:
       - "5000:5000"
@@ -30,7 +34,7 @@ services:
       DB_HOST: db              # ← Nom du service dans docker-compose
       DB_PORT: "5432"
       DB_NAME: devops_db
-      SECRET_KEY: 28f218fd66fbffb35db4dff88b9628d1a88fa17856f22c9fe811b01bed614ea0304e3bef8cbcddf39084898378af8cd5b2e406e82d6269c067ef95e1ec0bf038
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       FLASK_ENV: development
       DATABASE_URL: postgresql://postgres:admin@db:5432/devops_db
     depends_on:
